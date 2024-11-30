@@ -185,7 +185,7 @@ class FullereneNet(nn.Module):
         conv_layers (int): Number of convolutional layers in the model.
         hidden_layer (int): Number of features in the hidden layer of the fully connected network.
         heads (int): Number of attention heads in each MatformerConv layer.
-        dropout (float): Dropout probability. (default: 0.1)
+        dropout (float): Dropout probability. (default: 0)
         classification (bool): If True, the model will be configured for a classification task. (default: False)
     """
 
@@ -211,8 +211,6 @@ class FullereneNet(nn.Module):
             nn.Softplus(),
             nn.Linear(node_fea, node_fea),
         )
-
-        # self.set2set = Set2Set(in_channels=node_fea, processing_steps=3)
 
         # Attention layers
         self.att_layers = nn.ModuleList(
