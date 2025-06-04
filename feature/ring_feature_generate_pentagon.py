@@ -181,10 +181,13 @@ def sort_and_pick_pentagon_bond_neigbors(mol):
 
     return one_hot_vector
 
+def generate_ring_feature_pentagon(xyz_file):
+    f_mol=get_mol_list(xyz_file) # mol file 
+    ring_feature=[sort_and_pick_pentagon_bond_neigbors(mol) for mol in f_mol]
+    ring_feature=[torch.tensor(i,dtype=torch.float32) for i in ring_feature]
+    torch.save(ring_feature,"ring_feature_pentagon.pt")
+
 ### test ###
 # file=glob.glob("/blue/mingjieliu/jiruijin/program/Bruce/c20-c60-unopt-xyz/*.xyz")
 # file=sorted(file,key=custom_sort)
-# # get mol file
-# f_mol=get_mol_list(file)
-# mol=f_mol[1249] # C-60
-# print(sort_and_pick_pentagon_bond_neigbors(mol))
+# generate_ring_feature_pentagon(file)

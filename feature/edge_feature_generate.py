@@ -187,8 +187,13 @@ def get_edge_feature(mol):
     one_hot=map_values(edge_total)
     return one_hot
 
+def generate_edge_feature(xyz_file):
+    f_mol = get_mol_list(xyz_file) # mol file 
+    edge_feature = [np.array(get_edge_feature(i)) for i in f_mol]
+    edge_feature = [torch.tensor(i,dtype=torch.float32) for i in edge_feature]
+    torch.save(edge_feature, "edge_feature.pt")
+
 # test
 # file=glob.glob("./c20-c60-unopt-xyz/*.xyz")
 # file=sorted(file,key=custom_sort)
-# f_mol=get_mol_list(file) # mol file 
-# bond_feature=[np.array(get_edge_feature(i)) for i in f_mol]
+# generate_edge_feature(file)
