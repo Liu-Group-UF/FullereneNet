@@ -1,4 +1,6 @@
 # FullereneNet
+[Extrapolating Beyond C60: Advancing Prediction of Fullerene Isomers with FullereneNet](https://chemrxiv.org/engage/chemrxiv/article-details/68614e6ec1cb1ecda01b3421) 
+
 **Model** 
 ![Image](model.jpg)
 
