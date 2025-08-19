@@ -1,4 +1,4 @@
-from bond_feature_generate import custom_sort, get_mol_list, get_edge_index, get_bond_pair, get_bond_ring_type
+from edge_feature_generate import custom_sort, get_mol_list, get_edge_index, get_bond_pair, get_bond_ring_type
 import numpy as np
 import glob
 import os
@@ -336,11 +336,11 @@ def sort_and_pick_hexagon_bond_neigbors(mol):
 
     return one_hot_vector
     
-def generate_ring_feature_hexagon(xyz_file):
+def generate_ring_feature_hexagon(xyz_file, ring_feature_hexagon_name = "ring_feature_hexagon.pt"):
     f_mol=get_mol_list(xyz_file) # convert xyz files to mol files 
     ring_feature=[sort_and_pick_hexagon_bond_neigbors(mol) for mol in f_mol]
     ring_feature=[torch.tensor(i,dtype=torch.float32) for i in ring_feature]
-    torch.save(ring_feature,"ring_feature_hexagon.pt")
+    torch.save(ring_feature, ring_feature_hexagon_name)
 
 ### test ###
 # file=glob.glob("/blue/mingjieliu/jiruijin/program/Bruce/c20-c60-unopt-xyz/*.xyz")

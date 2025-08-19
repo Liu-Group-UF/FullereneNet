@@ -11,9 +11,9 @@ from tqdm import tqdm
 import os
 
 def custom_sort(file:list):
-    n1=int(file.split("/")[-1].split("_")[0].split("C")[-1])
-    n2=int(file.split("/")[-1].split("_")[-1].split(".")[0])
-    return (n1,n2)
+    n1=int(file.split("/")[-1].split("-")[0].split("c")[-1])
+    n2=int(file.split("/")[-1].split("-")[-1].split("_")[0])
+    return (n1, n2)
 
 def get_mol_list(file:list):
     f_mol = []

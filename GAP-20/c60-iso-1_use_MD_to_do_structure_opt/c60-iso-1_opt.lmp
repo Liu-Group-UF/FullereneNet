@@ -1,0 +1,19 @@
+# Test of GAP potential for C system
+
+units    metal
+boundary    p p p
+
+atom_style    atomic
+read_data    input_data
+pair_style    quip
+pair_coeff  * * ../GAP_20/Carbon_GAP_V10_2_LDIter1_kptconsistent_grr6_2b_3b_soap_n12l4_sp9k_delta-2-0.05-0.1.xml 'Potential xml_label=GAP_2021_4_21_0_21_17_24_635' 6
+
+min_style      cg
+minimize       1e-4 1e-6 1000 10000
+
+dump           myDump all xyz 1 optimized_structure.xyz
+run            0
+undump         myDump
+
+variable poteng equal pe
+print 'Potential Energy = ${poteng}'

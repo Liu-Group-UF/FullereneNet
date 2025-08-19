@@ -5,11 +5,9 @@ from rdkit.Chem import rdDetermineBonds
 import numpy as np
 import glob
 import os
+import torch
+from node_feature_generate import custom_sort
 
-def custom_sort(file:list):
-    n1=int(file.split("/")[-1].split("_")[0].split("C")[-1])
-    n2=int(file.split("/")[-1].split("_")[-1].split(".")[0])
-    return (n1,n2)
 
 def get_mol_list(file:list):
     f_mol = []
@@ -187,11 +185,11 @@ def get_edge_feature(mol):
     one_hot=map_values(edge_total)
     return one_hot
 
-def generate_edge_feature(xyz_file):
+def generate_edge_feature(xyz_file, edge_feature_name:str="edge_feature.pt"):
     f_mol = get_mol_list(xyz_file) # mol file 
     edge_feature = [np.array(get_edge_feature(i)) for i in f_mol]
     edge_feature = [torch.tensor(i,dtype=torch.float32) for i in edge_feature]
-    torch.save(edge_feature, "edge_feature.pt")
+    torch.save(edge_feature, edge_feature_name)
 
 # test
 # file=glob.glob("./c20-c60-unopt-xyz/*.xyz")
