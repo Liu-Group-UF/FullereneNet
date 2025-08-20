@@ -49,7 +49,7 @@ Train and test the model using:
 ``` bash
 python train_and_test_FullereneNet.py --with_edge --epochs 300 --target 'Eb' --lr 0.001 -seed 42
 ```
-Target choices: 'homo', 'lumo', 'gap', 'dipole_total', 'G-water', 'G-dich', 'logP', 'Eb'.
+Target choices: 'homo', 'lumo', 'gap', 'dipole_total', 'G-water', 'G-dich', 'logP', 'Eb'. The explanation of each target can be found paper. 
 
 `--with_edge` indicate using both node and edge feature to train the model. 
 
