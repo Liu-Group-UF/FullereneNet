@@ -53,7 +53,7 @@ Training and testing results will be printed to the console.
 All available arguments can be found inside the script.
 ### Matformer
 We also benchmark with Matformer, using bond distances as features.
-These features should be obtained from optimized structures and can be downloaded from Figsure. 
+These features should be obtained from optimized structures and can be downloaded from [Figsure](https://figshare.com/articles/dataset/Fullerene_Dataset_for_paper_Extrapolating_Beyond_C60_Advancing_Prediction_of_Fullerene_Isomers_with_FullereneNet_/29242307). 
 
 Run training and testing with:
 ``` bash
