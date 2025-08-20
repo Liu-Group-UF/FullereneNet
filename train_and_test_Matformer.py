@@ -11,7 +11,6 @@ import random
 
 import torch
 from torch.optim.lr_scheduler import StepLR, OneCycleLR, CosineAnnealingWarmRestarts
-from torch.utils.tensorboard import SummaryWriter
 from torch.optim import Adam, AdamW
 
 from model.Matformer import Matformer
@@ -26,38 +25,34 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed_all(0)
     
 # load data to torch_geometric
-def load_data_list(node_fea,edge_index,bond_fea,tar="energy"):
+def load_data_list(node_fea,edge_index, edge_fea, df, tar="Eb"):
     # get target value 
-    df = pd.read_csv('data/c20-c60-dft-all.csv')
-#     df = df[:3958].reset_index(drop=True)
-    
     target = {}
-    target['energy'] = df['E_binding(eV)'].values.reshape(-1,1)
+    target['Eb'] = df['E_binding(eV)'].values.reshape(-1,1)
     
     for i, name in enumerate([ 'homo', 'lumo', 'gap',]):
         target[name] = df.iloc[:, 4+i].values.reshape(-1,1)
         
-#     target['logP(t)'] = df['logP(toluene)'].values.reshape(-1,1)
-    target['logP(d)'] = df['logP(dichlorobenzene)'].values.reshape(-1,1)
+    target['logP'] = df['logP(dichlorobenzene)'].values.reshape(-1,1)
     
     data_list = []
-    target_list={'energy':0,'homo':1,'lumo':2,'gap':3,'logP(d)':4,}
+    target_list={'Eb':0,'homo':1,'lumo':2,'gap':3,'logP':4,}
     index=int(target_list.get(tar))
     
     # load id
     id_C = df['#iso']
     
     for i in tqdm(range(len(node_fea))):
-        y_i = [torch.tensor(target[name][i],dtype=torch.float32) for name in ['energy', 'homo', 'lumo', 'gap',
-                                                                             'logP(d)']]
-        data = Data(x=node_fea[i],edge_index=edge_index[i],edge_attr=bond_fea[i],y=y_i[index],id_C=id_C[i])
+        y_i = [torch.tensor(target[name][i],dtype=torch.float32) for name in ['Eb', 'homo', 'lumo', 'gap',
+                                                                             'logP']]
+        data = Data(x=node_fea[i],edge_index=edge_index[i],edge_attr=edge_fea[i],y=y_i[index],id_C=id_C[i])
         data_list.append(data)
     return data_list
 
 ### Model train
 def run(device, train_dataset, valid_dataset, test_dataset, model, scheduler_name, loss_func, epochs=300, batch_size=32, 
         vt_batch_size=32, lr=0.001, lr_decay_factor=0.5, lr_decay_step_size=50, weight_decay=0, 
-    save_dir='checkpoints/', log_dir='', disable_tqdm=False):     
+    save_dir='checkpoints/', disable_tqdm=False):     
 
 #     model = model.to(device)
     num_params = sum(p.numel() for p in model.parameters()) 
@@ -81,10 +76,6 @@ def run(device, train_dataset, valid_dataset, test_dataset, model, scheduler_nam
     if save_dir != '':
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-    if log_dir != '':
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
-        writer = SummaryWriter(log_dir=log_dir)
     
     start_epoch = 1
     
@@ -104,11 +95,6 @@ def run(device, train_dataset, valid_dataset, test_dataset, model, scheduler_nam
         valid_mae_list.append(valid_mae)
         test_mae_list.append(test_mae)
         
-        if log_dir != '':
-            writer.add_scalar('train_mae', train_mae, epoch)
-            writer.add_scalar('valid_mae', valid_mae, epoch)
-            writer.add_scalar('test_mae', test_mae, epoch)
-        
         if valid_mae < best_valid:
             best_valid = valid_mae
             test_valid = test_mae
@@ -123,7 +109,6 @@ def run(device, train_dataset, valid_dataset, test_dataset, model, scheduler_nam
 
         t_end = time.perf_counter()
         print({'Train': train_mae, 'Validation': valid_mae, 'Test': test_mae, 'Best valid': best_valid, 'Test@ best valid': test_valid, 'Duration': t_end-t_start})
-
 
         if scheduler_name == 'steplr':
             scheduler.step()
@@ -147,9 +132,6 @@ def run(device, train_dataset, valid_dataset, test_dataset, model, scheduler_nam
     print(f'Best validation MAE so far: {best_valid}')
     print(f'Test MAE when got best validation result: {test_valid}')
     
-    if log_dir != '':
-        writer.close()
-
         
 def train(model, optimizer, scheduler, scheduler_name, train_loader, loss_func, device, disable_tqdm):  
     model.train()
@@ -182,7 +164,7 @@ def val(model, data_loader, device, disable_tqdm):
     return torch.mean(torch.abs(preds - targets)).cpu().item()
 
 parser = argparse.ArgumentParser(description='Fullerene')
-parser.add_argument('--target', type=str, default='energy')
+parser.add_argument('--target', type=str, default='Eb')
 parser.add_argument('--use_optimized_structure', default=False, action='store_true')
 parser.add_argument('--train_ratio', type=float, default=0.8)
 parser.add_argument('--valid_ratio', type=float, default=0.1)
@@ -211,15 +193,34 @@ args = parser.parse_args()
 if args.use_optimized_structure:
     edge_index=torch.load("feature/opt_and_unopt_for_matformer/edge_index_matfomer_opt.pt")
     node_feature=torch.load( "feature/opt_and_unopt_for_matformer/node_feature_matfomer_opt.pt")
-    edge_feature = torch.load(path + 'feature/opt_and_unopt_for_matformer/edge_feature_matfomer_opt.pt')
+    edge_feature = torch.load('feature/opt_and_unopt_for_matformer/edge_feature_matfomer_opt.pt')
 else:
     edge_index=torch.load("feature/opt_and_unopt_for_matformer/edge_index_matfomer_unopt.pt")
     node_feature=torch.load( "feature/opt_and_unopt_for_matformer/node_feature_matfomer_unopt.pt")
     edge_feature = torch.load("feature/opt_and_unopt_for_matformer/edge_feature_matfomer_unopt.pt")
 
+edge_index_c60 = edge_index[:5770]
+node_feature_c60 = node_feature[:5770]
+edge_feature_c60 = edge_feature[:5770]
 
-data_list=load_data_list(node_feature,edge_index,edge_feature,tar=args.target)
+edge_index_c70 = edge_index[5770:5770+100]
+node_feature_c70 = node_feature[5770:5770+100]
+edge_feature_c70 = edge_feature[5770:5770+100]
+
+edge_index_c72_100 = edge_index[5870:]
+node_feature_c72_100 = node_feature[5870:]
+edge_feature_c72_100 = edge_feature[5870:]
+
+# load label from csv
+df_c60 = pd.read_csv("data/c20-c60-dft-all.csv")
+df_c70 = pd.read_csv("data/c70-100-isomers-Eb-Eg-logP.csv")
+df_c72_100 = pd.read_csv("data/c62-c720-dft-all.csv")
+
+data_list=load_data_list(node_feature_c60, edge_index_c60, edge_feature_c60, df_c60, tar=args.target)
 test_dataset = data_list[3958:]
+
+test_dataset_c70 = load_data_list(node_feature_c70, edge_index_c70, edge_feature_c70, df_c70, tar=args.target)
+test_dataset_c72_100 = load_data_list(node_feature_c72_100, edge_index_c72_100, edge_feature_c72_100, df_c72_100, tar=args.target)
 
 # shuffle data 
 new_data_list=shuffle(data_list[:3958],random_state=args.seed)
@@ -237,8 +238,7 @@ valid_dataset = new_data_list[train_len:]
 # valid_dataset = new_data_list[train_len:train_len+valid_len]
 # test_dataset = new_data_list[train_len+valid_len:]
 
-
-model = Matformer(node_fea=args.node_embedding,edge_fea=9,atom_input_features=4,
+model = Matformer(node_fea=args.node_embedding,edge_fea=19,atom_input_features=92,
               conv_layers=args.num_conv_layer, hidden_layer=args.hidden_channels, heads=args.num_heads)
 
 loss_func = torch.nn.MSELoss()
@@ -280,16 +280,17 @@ def get_predictions_and_targets(model, data_loader, device):
         
     return all_preds, all_targets, all_id
 
-def get_predictions_with_certain_test_set(model, train_loader, test_loader, device, train_name='train', test_name='test'):
-    train_preds, train_targets, train_id = get_predictions_and_targets(model, train_loader, device)
+def get_predictions_with_certain_test_set(model, train_loader, test_loader, device, train_name=None, test_name='test'):
     test_preds, test_targets, test_id = get_predictions_and_targets(model, test_loader, device)
-    train_preds=[i[0] for i in train_preds]
     test_preds=[i[0] for i in test_preds] 
     print()
-    print(f'{train_name}_r2_score=',r2_score(train_targets, train_preds))
-    print(f'{train_name}_rmse=',rmse(train_targets, train_preds))
-    print(f'{train_name}_mse=',mse(train_targets, train_preds))
-    print(f'{train_name}_mae=',mae(train_targets, train_preds))   
+    if train_name:
+        train_preds, train_targets, train_id = get_predictions_and_targets(model, train_loader, device)
+        train_preds=[i[0] for i in train_preds]
+        print(f'{train_name}_r2_score=',r2_score(train_targets, train_preds))
+        print(f'{train_name}_rmse=',rmse(train_targets, train_preds))
+        print(f'{train_name}_mse=',mse(train_targets, train_preds))
+        print(f'{train_name}_mae=',mae(train_targets, train_preds))   
 
     print(f'{test_name}_test r2_score=',r2_score(test_targets,  test_preds))
     print(f'{test_name}_rmse=',rmse(test_targets,  test_preds))
@@ -305,5 +306,5 @@ test_loader_C70 = DataLoader(test_dataset_c70, 32, shuffle=False)
 test_loader_C72_100 = DataLoader(test_dataset_c72_100, 32, shuffle=False)
 
 get_predictions_with_certain_test_set(model, train_loader, test_loader_C60, device, train_name='train_C20_58', test_name='test_C60')
-get_predictions_with_certain_test_set(model, train_loader, test_loader_C70, device, train_name='train_C20_58', test_name='test_C70')
-get_predictions_with_certain_test_set(model, train_loader, test_loader_C72_100, device, train_name='train_C20_58', test_name='test_C72_100')
+get_predictions_with_certain_test_set(model, train_loader, test_loader_C70, device, train_name=None, test_name='test_C70')
+get_predictions_with_certain_test_set(model, train_loader, test_loader_C72_100, device, train_name=None, test_name='test_C72_100')

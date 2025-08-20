@@ -47,17 +47,22 @@ We provide several data split strategies for training and evaluation:
 ### FullereneNet
 Train and test the model using:
 ``` bash
-python train_and_test_FullereneNet.py
+python train_and_test_FullereneNet.py --with_edge --epochs 300 --target 'Eb' --lr 0.001 -seed 42
 ```
+Target choices: 'homo', 'lumo', 'gap', 'dipole_total', 'G-water', 'G-dich', 'logP', 'Eb'.
+
+`--with_edge` indicate using both node and edge feature to train the model. 
+
 Training and testing results will be printed to the console.
 All available arguments can be found inside the script.
 ### Matformer
 We also benchmark with Matformer, using bond distances as features.
-These features should be obtained from optimized structures and can be downloaded from [Figsure](https://figshare.com/articles/dataset/Fullerene_Dataset_for_paper_Extrapolating_Beyond_C60_Advancing_Prediction_of_Fullerene_Isomers_with_FullereneNet_/29242307). 
+These features should be obtained from optimized structures and can be downloaded from [Figsure](https://figshare.com/articles/dataset/Fullerene_Dataset_for_paper_Extrapolating_Beyond_C60_Advancing_Prediction_of_Fullerene_Isomers_with_FullereneNet_/29242307), find **feature_for_matformer.zip** file, download it. Then move the file to `feature/opt_and_unopt_for_matformer` folder, unzip file.  
 
 Run training and testing with:
 ``` bash
-python train_and_test_FullereneNet.py
+python train_and_test_FullereneNet.py --epochs 300 --target 'Eb' --lr 0.001 --seed 42 --use_optimized_structure
 ```
+`--use_optimized_structure` indicate using DFT optimized structures to train the model.
 ### Molecule Dynamic with GAP-20
 We provide example LAMMPS input scripts using the **GAP-20** potential to calculate binding energy and perform geometry optimization on GAP-20 folder. 

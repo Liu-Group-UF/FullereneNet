@@ -11,7 +11,7 @@ import random
 
 import torch
 from torch.optim.lr_scheduler import StepLR, OneCycleLR, CosineAnnealingWarmRestarts
-from torch.utils.tensorboard import SummaryWriter
+
 from torch.optim import Adam, AdamW
 
 from model.FullereneNet import FullereneNet
@@ -56,7 +56,7 @@ def load_data_list(node_fea, edge_index, edge_fea, df, tar="Eb", with_edge=True)
 ### Model train
 def run(device, train_dataset, valid_dataset, test_dataset, model, scheduler_name, loss_func, epochs=300, batch_size=32, 
         vt_batch_size=32, lr=0.001, lr_decay_factor=0.5, lr_decay_step_size=50, weight_decay=0, 
-    save_dir='checkpoints/', log_dir='', disable_tqdm=False):     
+    save_dir='checkpoints/', disable_tqdm=False):     
 
 #     model = model.to(device)
     num_params = sum(p.numel() for p in model.parameters()) 
@@ -80,10 +80,6 @@ def run(device, train_dataset, valid_dataset, test_dataset, model, scheduler_nam
     if save_dir != '':
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-    if log_dir != '':
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
-        writer = SummaryWriter(log_dir=log_dir)
     
     start_epoch = 1
     
@@ -103,10 +99,6 @@ def run(device, train_dataset, valid_dataset, test_dataset, model, scheduler_nam
         valid_mae_list.append(valid_mae)
         test_mae_list.append(test_mae)
         
-        if log_dir != '':
-            writer.add_scalar('train_mae', train_mae, epoch)
-            writer.add_scalar('valid_mae', valid_mae, epoch)
-            writer.add_scalar('test_mae', test_mae, epoch)
         
         if valid_mae < best_valid:
             best_valid = valid_mae
@@ -146,10 +138,7 @@ def run(device, train_dataset, valid_dataset, test_dataset, model, scheduler_nam
     print(f'Best validation MAE so far: {best_valid}')
     print(f'Test MAE when got best validation result: {test_valid}')
     
-    if log_dir != '':
-        writer.close()
 
-        
 def train(model, optimizer, scheduler, scheduler_name, train_loader, loss_func, device, disable_tqdm):  
     model.train()
     loss_accum = 0
@@ -182,7 +171,7 @@ def val(model, data_loader, device, disable_tqdm):
 
 parser = argparse.ArgumentParser(description='Fullerene')
 parser.add_argument('--with_edge', default=False, action='store_true', help='use edge feature or not')
-parser.add_argument('--target', type=str, default='energy')
+parser.add_argument('--target', type=str, default='Eb') # choices: 'homo', 'lumo', 'gap','dipole_total','G-water','G-dich','logP','Eb'
 parser.add_argument('--train_ratio', type=float, default=0.8)
 parser.add_argument('--valid_ratio', type=float, default=0.1)
 parser.add_argument('--seed', type=int, default=123)
@@ -207,15 +196,15 @@ parser.add_argument('--num_heads', type=int, default=4)
 args = parser.parse_args()
 
 # load data 
-edge_index_c60=torch.load("feature/edge_index_c60.pt")
-node_feature_c60=torch.load( "feature/node_feature_c60.pt")
-edge_feature_c60 = torch.load(path + 'feature/edge_feature_c60.pt')
+edge_index_c60 = torch.load("feature/edge_index_c60.pt")
+node_feature_c60 = torch.load( "feature/node_feature_c60.pt")
+edge_feature_c60 = torch.load('feature/edge_feature_c60.pt')
 
-edge_index_c70 = torch.load("feature/edge_feature_c70_non_IPR.pt")
+edge_index_c70 = torch.load("feature/edge_index_c70_non_IPR.pt")
 node_feature_c70 = torch.load("feature/node_feature_c70_non_IPR.pt")
 edge_feature_c70 = torch.load("feature/edge_feature_c70_non_IPR.pt")
 
-edge_index_c72_100 = torch.load("feature/edge_feature_c72_100_IPR.pt")
+edge_index_c72_100 = torch.load("feature/edge_index_c72_100_IPR.pt")
 node_feature_c72_100 = torch.load("feature/node_feature_c72_100_IPR.pt")
 edge_feature_c72_100 = torch.load("feature/edge_feature_c72_100_IPR.pt")
 
@@ -228,11 +217,11 @@ data_list=load_data_list(node_feature_c60, edge_index_c60, edge_feature_c60, df_
 test_dataset = data_list[3958:] # we use c20-c58 as training and validation, c60 as testing
 
 
-test_dataset_c70 = load_data_list(node_feature, edge_index, edge_feature, df_c70, tar=args.target, with_edge=args.with_edge)
-test_dataset_c72_100 = load_data_list(node_feature, edge_index, edge_feature, df_c72_100, tar=args.target, with_edge=args.with_edge)
+test_dataset_c70 = load_data_list(node_feature_c70, edge_index_c70, edge_feature_c70, df_c70, tar=args.target, with_edge=args.with_edge)
+test_dataset_c72_100 = load_data_list(node_feature_c72_100, edge_index_c72_100, edge_feature_c72_100, df_c72_100, tar=args.target, with_edge=args.with_edge)
 
 # shuffle data 
-new_data_list=shuffle(data_list[:3958],random_state=args.seed) # we use c20-c58 as training and validation, c60 as testing
+new_data_list=shuffle(data_list[:3958], random_state=args.seed) # we use c20-c58 as training and validation, c60 as testing
 
 # Calculate split indices
 total_len = len(new_data_list)
@@ -285,16 +274,17 @@ def get_predictions_and_targets(model, data_loader, device):
         
     return all_preds, all_targets, all_id
 
-def get_predictions_with_certain_test_set(model, train_loader, test_loader, device, train_name='train', test_name='test'):
-    train_preds, train_targets, train_id = get_predictions_and_targets(model, train_loader, device)
+def get_predictions_with_certain_test_set(model, train_loader, test_loader, device, train_name=None, test_name='test'):
     test_preds, test_targets, test_id = get_predictions_and_targets(model, test_loader, device)
-    train_preds=[i[0] for i in train_preds]
     test_preds=[i[0] for i in test_preds] 
     print()
-    print(f'{train_name}_r2_score=',r2_score(train_targets, train_preds))
-    print(f'{train_name}_rmse=',rmse(train_targets, train_preds))
-    print(f'{train_name}_mse=',mse(train_targets, train_preds))
-    print(f'{train_name}_mae=',mae(train_targets, train_preds))   
+    if train_name:
+        train_preds, train_targets, train_id = get_predictions_and_targets(model, train_loader, device)
+        train_preds=[i[0] for i in train_preds]
+        print(f'{train_name}_r2_score=',r2_score(train_targets, train_preds))
+        print(f'{train_name}_rmse=',rmse(train_targets, train_preds))
+        print(f'{train_name}_mse=',mse(train_targets, train_preds))
+        print(f'{train_name}_mae=',mae(train_targets, train_preds))   
 
     print(f'{test_name}_test r2_score=',r2_score(test_targets,  test_preds))
     print(f'{test_name}_rmse=',rmse(test_targets,  test_preds))
@@ -310,8 +300,8 @@ test_loader_C70 = DataLoader(test_dataset_c70, 32, shuffle=False)
 test_loader_C72_100 = DataLoader(test_dataset_c72_100, 32, shuffle=False)
 
 get_predictions_with_certain_test_set(model, train_loader, test_loader_C60, device, train_name='train_C20_58', test_name='test_C60')
-get_predictions_with_certain_test_set(model, train_loader, test_loader_C70, device, train_name='train_C20_58', test_name='test_C70')
-get_predictions_with_certain_test_set(model, train_loader, test_loader_C72_100, device, train_name='train_C20_58', test_name='test_C72_100')
+get_predictions_with_certain_test_set(model, train_loader, test_loader_C70, device, train_name=None, test_name='test_C70')
+get_predictions_with_certain_test_set(model, train_loader, test_loader_C72_100, device, train_name=None, test_name='test_C72_100')
 
 
 
